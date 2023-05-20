@@ -595,3 +595,9 @@ endif()
 if(NCNN_PYTHON)
     add_subdirectory(python)
 endif()
+add_subdirectory(ByteTrack-cpp)
+
+file(COPY
+    ${CMAKE_CURRENT_SOURCE_DIR}/yolov5_62_export_ncnn/yolov5s_6.2.bin
+    ${CMAKE_CURRENT_SOURCE_DIR}/yolov5_62_export_ncnn/yolov5s_6.2.param
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

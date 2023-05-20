@@ -4,3 +4,9 @@
 [submodule "python/pybind11"]
 	path = python/pybind11
 	url = https://github.com/pybind/pybind11.git
+[submodule "ByteTrack-cpp"]
+	path = ByteTrack-cpp
+	url = https://github.com/Vertical-Beach/ByteTrack-cpp.git
+[submodule "yolov5_62_export_ncnn"]
+	path = yolov5_62_export_ncnn
+	url = https://github.com/shaoshengsong/yolov5_62_export_ncnn
