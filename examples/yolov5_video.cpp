@@ -14,6 +14,7 @@
 
 #include "layer.h"
 #include "net.h"
+#include "ByteTrack/BYTETracker.h"
 
 #if defined(USE_NCNN_SIMPLEOCV)
 #include "simpleocv.h"
@@ -30,6 +31,7 @@
 #include <iomanip>
 
 ncnn::Net yolov5;
+byte_track::BYTETracker tracker;
 
 const int target_size = 640;
 const float prob_threshold = 0.25f;
@@ -470,6 +472,41 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
     }
 }
 
+static void draw_stracks(const cv::Mat& bgr, const std::vector<byte_track::BYTETracker::STrackPtr>& stracks)
+{
+    for (const auto& st : stracks)
+    {
+        const auto& _rect = st->getRect();
+
+        //fprintf(stderr, "%ld = %.5f at %.2f %.2f %.2f x %.2f\n", 
+        //    st->getTrackId(),
+        //    st->getScore(),
+        //    _rect.x(), _rect.y(), _rect.width(), _rect.height());
+
+        cv::Rect_<float> rect(_rect.x(), _rect.y(), _rect.width(), _rect.height());
+        cv::rectangle(bgr, rect, cv::Scalar(255, 0, 0));
+
+        char text[256];
+        sprintf(text, "%ld %.1f%%", st->getTrackId(), st->getScore() * 100);
+
+        int baseLine = 0;
+        cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+
+        int x = rect.x;
+        int y = rect.y - label_size.height - baseLine;
+        if (y < 0)
+            y = 0;
+        if (x + label_size.width > bgr.cols)
+            x = bgr.cols - label_size.width;
+
+        cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+                      cv::Scalar(255, 255, 255), -1);
+
+        cv::putText(bgr, text, cv::Point(x, y + label_size.height),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+    }
+}
+
 int main(int argc, char** argv)
 {
     if (argc != 2)
@@ -530,7 +567,15 @@ int main(int argc, char** argv)
 
         std::vector<Object> objects;
         detect_yolov5(m, objects);
-        draw_objects(m, objects);
+        // std::vector<byte_track::Object>
+        std::vector<byte_track::Object> btobjs;
+        for (auto obj : objects) {
+            const cv::Rect_<float> *rect = &obj.rect;
+            const byte_track::Rect<float> btrect(rect->x, rect->y, rect->width, rect->height);
+            btobjs.push_back(byte_track::Object(btrect, obj.label, obj.prob));
+        }
+        const auto strack = tracker.update(btobjs);
+        draw_stracks(m, strack);
 
         frame_count++;
         total_frames++;
