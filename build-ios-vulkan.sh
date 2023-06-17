@@ -7,5 +7,7 @@ cmake .. \
     -DVulkan_INCLUDE_DIR=${VULKAN_SDK}/MoltenVK/include \
     -DNCNN_VULKAN=ON \
     -DNCNN_BUILD_BENCHMARK=OFF \
-    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=install
 make -j4
+make install
