@@ -11,18 +11,37 @@ set (IOS True)
 # suppress -rdynamic
 # set(CMAKE_SYSTEM_NAME Generic)
 
-set(CMAKE_C_COMPILER arm-apple-darwin11-clang)
-set(CMAKE_CXX_COMPILER arm-apple-darwin11-clang++)
+# Locate gcc
+execute_process(COMMAND /usr/bin/xcrun -sdk iphoneos -find clang
+                OUTPUT_VARIABLE CMAKE_C_COMPILER
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-set(_CMAKE_TOOLCHAIN_PREFIX arm-apple-darwin11-)
+# Locate g++
+execute_process(COMMAND /usr/bin/xcrun -sdk iphoneos -find clang++
+                OUTPUT_VARIABLE CMAKE_CXX_COMPILER
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-set(CMAKE_IOS_SDK_ROOT "/home/nihui/osd/cctools-port/usage_examples/ios_toolchain/target/SDK/iPhoneOS10.2.sdk")
+# Set the CMAKE_OSX_SYSROOT to the latest SDK found
+execute_process(COMMAND /usr/bin/xcrun -sdk iphoneos --show-sdk-path
+                OUTPUT_VARIABLE CMAKE_OSX_SYSROOT
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+message(STATUS "gcc found at: ${CMAKE_C_COMPILER}")
+message(STATUS "g++ found at: ${CMAKE_CXX_COMPILER}")
+message(STATUS "Using iOS SDK: ${CMAKE_OSX_SYSROOT}")
+
+set(CMAKE_C_COMPILER ${CMAKE_C_COMPILER})
+set(CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER})
+
+set(_CMAKE_TOOLCHAIN_PREFIX )
+
+set(CMAKE_IOS_SDK_ROOT ${CMAKE_OSX_SYSROOT})
 
 # Set the sysroot default to the most recent SDK
 set(CMAKE_OSX_SYSROOT ${CMAKE_IOS_SDK_ROOT} CACHE PATH "Sysroot used for iOS support")
 
 # set the architecture for iOS
-set(IOS_ARCH arm64)
+set(IOS_ARCH arm64 arm64e)
 
 set(CMAKE_OSX_ARCHITECTURES ${IOS_ARCH} CACHE STRING "Build architecture for iOS")
 
