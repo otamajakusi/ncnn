@@ -4,3 +4,6 @@
 [submodule "python/pybind11"]
 	path = python/pybind11
 	url = https://github.com/pybind/pybind11.git
+[submodule "mahjong-c"]
+	path = mahjong-c
+	url = https://github.com/otamajakusi/mahjong-c
