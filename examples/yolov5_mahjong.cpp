@@ -790,7 +790,8 @@ bool calcMahjongScore(
     const cv::Mat &m,
     MJTileId playerWind,
     MJTileId roundWind,
-    bool tsumo)
+    bool tsumo,
+    MJBaseScore &score)
 {
     // 1. split objects into upper_objects and lower_objects
     // 2. if lower_objects is empty, illegal. at least hand tile is needed.
@@ -821,7 +822,6 @@ bool calcMahjongScore(
 	return ret;
     }
     const MJTileId winTile = label2TileId[upper[upper.size()-1].label];
-    MJBaseScore score;
     memset(&score, 0, sizeof(score));
     int mj_ret = mj_get_score(&score, &hands, &melds, winTile, !tsumo, playerWind, roundWind);
     if (mj_ret != MJ_OK) {
@@ -829,26 +829,32 @@ bool calcMahjongScore(
 	return false;
     }
     std::cout << "yaku: " << score.yaku_name << ", han:" << score.han << std::endl;
+    return true;
+}
 
+void showAgari(
+    const MJBaseScore &score,
+    bool tsumo,
+    bool dealer,
+    cv::Mat &m) {
     uint32_t point;
     uint32_t pointDealer;
-    bool dealer = playerWind == MJ_WT;
     get_score(score.fu, score.han, tsumo, dealer, &point, &pointDealer);
     std::cout << "point: " << point << ", pointDealer: " << pointDealer << std::endl;
 
     std::string pointStr;
     if (dealer) {
-	if (tsumo) {
-	    pointStr = std::to_string(point) + " ALL";
-	} else {
-	    pointStr = std::to_string(point);
-	}
+        if (tsumo) {
+            pointStr = std::to_string(point) + " ALL";
+        } else {
+            pointStr = std::to_string(point);
+        }
     } else {
-	if (tsumo) {
-	    pointStr = std::to_string(point) + "/" + std::to_string(pointDealer);
-	} else {
-	    pointStr = std::to_string(point);
-	}
+        if (tsumo) {
+            pointStr = std::to_string(point) + "/" + std::to_string(pointDealer);
+        } else {
+            pointStr = std::to_string(point);
+        }
     }
     cv::putText(m, pointStr, cv::Point(64 * 3, 24),
                 cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(10, 10, 10), 2);
@@ -856,30 +862,24 @@ bool calcMahjongScore(
                 cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(250,250,250), 2);
 
 
-    //cv::Mat &_yakuImg = yakuImages["pinfu"];
-    //cv::Mat _yakuRoi = m(cv::Rect(0, 128, _yakuImg.cols, _yakuImg.rows));
-    //_yakuImg.copyTo(yakuRoi);
-    // yaku
     std::istringstream iss(score.yaku_name);
     std::vector<std::string> yaku;
     std::string sub;
     while (iss >> sub) {
-	yaku.push_back(sub);
+        yaku.push_back(sub);
     }
     int yaku_x = 0;
     for (auto y : yaku) {
-	std::cout << "yaku: " << y << std::endl;
-	auto it = yakuImages.find(y);
-	if (it == yakuImages.end()) {
-	    std::cout << "yaku image not found: " << y << std::endl;
-	    continue;
-	}
-	cv::Mat &yakuImg = it->second;
-	cv::Mat yakuRoi = m(cv::Rect(yaku_x, m.size().height - yakuImg.rows, yakuImg.cols, yakuImg.rows));
-	yakuImg.copyTo(yakuRoi);
-	yaku_x += yakuImg.cols;
+        auto it = yakuImages.find(y);
+        if (it == yakuImages.end()) {
+            std::cout << "yaku image not found: " << y << std::endl;
+            continue;
+        }
+        cv::Mat &yakuImg = it->second;
+        cv::Mat yakuRoi = m(cv::Rect(yaku_x, m.size().height - yakuImg.rows, yakuImg.cols, yakuImg.rows));
+        yakuImg.copyTo(yakuRoi);
+        yaku_x += yakuImg.cols;
     }
-    return true;
 }
 
 int main(int argc, char** argv)
@@ -950,6 +950,10 @@ int main(int argc, char** argv)
 	    cv::imread("ron-agari.png")};
 
     int loop = true;
+    MJBaseScore score_save;
+    memset(&score_save, 0, sizeof(score_save));
+    int save_frame_count = 0;
+
     while (loop)
     {
         cap.read(m);
@@ -976,7 +980,17 @@ int main(int argc, char** argv)
 	cv::Mat agariRoi = m(cv::Rect(playerWindImg.cols + roundWindImg.cols, 0, agariImg.cols, agariImg.rows));
 	agariImg.copyTo(agariRoi);
 
-        calcMahjongScore(objects, m, (MJTileId)(playerWindIndex + MJ_WT), (MJTileId)(roundWindIndex + MJ_WT), agariIndex == 0);
+	MJBaseScore score;
+	memset(&score, 0, sizeof(score));
+        int mj_ret = calcMahjongScore(
+	    objects, m, (MJTileId)(playerWindIndex + MJ_WT), (MJTileId)(roundWindIndex + MJ_WT), agariIndex == 0, score);
+	if (mj_ret) {
+	    showAgari(score, agariIndex == 0, playerWindIndex + MJ_WT == MJ_WT, m);
+	    score_save = score;
+	    save_frame_count = total_frames;
+	} else if (score_save.fu != 0 && total_frames - save_frame_count < 30) {
+	    showAgari(score_save, agariIndex == 0, playerWindIndex + MJ_WT == MJ_WT, m);
+	}
 
         frame_count++;
         total_frames++;
