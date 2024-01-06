@@ -79,3 +79,6 @@ if(NCNN_PIXEL)
 else()
     message(WARNING "NCNN_PIXEL not enabled, examples won't be built")
 endif()
+
+file(GLOB PNG_FILES "${CMAKE_CURRENT_SOURCE_DIR}/assets/mahjong/*.png")
+file(COPY ${PNG_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
