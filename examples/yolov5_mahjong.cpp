@@ -28,9 +28,12 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <tuple>
+#include <map>
 
 #include "mahjong.h"
+#include "score.h"
 #include "util.h"
 
 ncnn::Net yolov5;
@@ -740,9 +743,54 @@ bool handleUpper(
     }
 }
 
+std::map<std::string, cv::Mat> yakuImages = {
+    {"pinfu", cv::imread("pinfu.png")},			// 平和
+    {"tanyao", cv::imread("tanyao.png")},			// 断么九
+    {"iipeiko", cv::imread("iipeiko.png")},		// 一盃口
+    {"haku", cv::imread("haku.png")},			// 白
+    {"hatsu", cv::imread("hatsu.png")},			// 發
+    {"chun", cv::imread("chun.png")},			// 中
+    {"ton", cv::imread("ton.png")},			// 東
+    {"nan", cv::imread("nan.png")},			// 南
+    {"sha", cv::imread("sha.png")},			// 西
+    {"pei", cv::imread("pei.png")},			// 北
+    {"tsumo", cv::imread("tsumo.png")},			// 門前清自摸和
+    {"toitoi", cv::imread("toitoi.png")},			// 対々和
+    {"sanankou", cv::imread("sanankou.png")},		// 三暗刻
+    {"sanshoku_douko", cv::imread("sanshoku_douko.png")},	// 三色同刻 
+    {"sankantsu", cv::imread("sankantsu.png")},		// 三槓子
+    {"shosangen", cv::imread("shosangen.png")},		// 小三元
+    {"honroto", cv::imread("honroto.png")},		// 混老頭
+    {"double_ton", cv::imread("double_ton.png")},		// ダブ東
+    {"double_nan", cv::imread("double_nan.png")},		// ダブ南
+    {"double_sha", cv::imread("double_sha.png")},		// ダブ西
+    {"double_pei", cv::imread("double_pei.png")},		// ダブ北
+    {"chiitoitsu", cv::imread("chiitoitsu.png")},		// 七対子
+    {"sanshoku", cv::imread("sanshoku.png")},		// 三色同順
+    {"ittsu", cv::imread("ittsu.png")},			// 一気通貫
+    {"chanta", cv::imread("chanta.png")},			// 混全帯么九
+    {"ryanpeiko", cv::imread("ryanpeiko.png")},		// 二盃口
+    {"honitsu", cv::imread("honitsu.png")},		// 混一色
+    {"junchan", cv::imread("junchan.png")},		// 純全帯么九
+    {"chinitsu", cv::imread("chinitsu.png")},		// 清一色
+    {"kokushi", cv::imread("kokushi.png")},		// 国士無双
+    {"suuankou", cv::imread("suuankou.png")},		// 四暗刻
+    {"daisangen", cv::imread("daisangen.png")},		// 大三元
+    {"ryuisou", cv::imread("ryuisou.png")},		// 緑一色
+    {"tsuisou", cv::imread("tsuisou.png")},		// 字一色
+    {"shosuushi", cv::imread("shosuushi.png")},		// 小四喜
+    {"daisuushi", cv::imread("daisuushi.png")},		// 大四喜
+    {"chinroto", cv::imread("chinroto.png")},		// 清老頭
+    {"suukantsu", cv::imread("suukantsu.png")},		// 四槓子
+    {"chuuren_poutou", cv::imread("chuuren_poutou.png")},	// 九蓮宝燈
+};
+
 bool calcMahjongScore(
     const std::vector<Object> &objects,
-    const cv::Mat &m)
+    const cv::Mat &m,
+    MJTileId playerWind,
+    MJTileId roundWind,
+    bool tsumo)
 {
     // 1. split objects into upper_objects and lower_objects
     // 2. if lower_objects is empty, illegal. at least hand tile is needed.
@@ -775,17 +823,62 @@ bool calcMahjongScore(
     const MJTileId winTile = label2TileId[upper[upper.size()-1].label];
     MJBaseScore score;
     memset(&score, 0, sizeof(score));
-    const bool ron = true;
-    const MJTileId playerWind = MJ_WT;
-    const MJTileId roundWind = MJ_WT;
-    util_dump_melds(&melds);
-    printf("winTile: %02d\n", winTile);
-    int mj_ret = mj_get_score(&score, &hands, &melds, winTile, ron, playerWind, roundWind);
+    int mj_ret = mj_get_score(&score, &hands, &melds, winTile, !tsumo, playerWind, roundWind);
     if (mj_ret != MJ_OK) {
 	std::cout << "mj_get_score " << mj_ret << std::endl;
 	return false;
     }
     std::cout << "yaku: " << score.yaku_name << ", han:" << score.han << std::endl;
+
+    uint32_t point;
+    uint32_t pointDealer;
+    bool dealer = playerWind == MJ_WT;
+    get_score(score.fu, score.han, tsumo, dealer, &point, &pointDealer);
+    std::cout << "point: " << point << ", pointDealer: " << pointDealer << std::endl;
+
+    std::string pointStr;
+    if (dealer) {
+	if (tsumo) {
+	    pointStr = std::to_string(point) + " ALL";
+	} else {
+	    pointStr = std::to_string(point);
+	}
+    } else {
+	if (tsumo) {
+	    pointStr = std::to_string(point) + "/" + std::to_string(pointDealer);
+	} else {
+	    pointStr = std::to_string(point);
+	}
+    }
+    cv::putText(m, pointStr, cv::Point(64 * 3, 24),
+                cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(10, 10, 10), 2);
+    cv::putText(m, pointStr, cv::Point(64 * 3+1, 25),
+                cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(250,250,250), 2);
+
+
+    //cv::Mat &_yakuImg = yakuImages["pinfu"];
+    //cv::Mat _yakuRoi = m(cv::Rect(0, 128, _yakuImg.cols, _yakuImg.rows));
+    //_yakuImg.copyTo(yakuRoi);
+    // yaku
+    std::istringstream iss(score.yaku_name);
+    std::vector<std::string> yaku;
+    std::string sub;
+    while (iss >> sub) {
+	yaku.push_back(sub);
+    }
+    int yaku_x = 0;
+    for (auto y : yaku) {
+	std::cout << "yaku: " << y << std::endl;
+	auto it = yakuImages.find(y);
+	if (it == yakuImages.end()) {
+	    std::cout << "yaku image not found: " << y << std::endl;
+	    continue;
+	}
+	cv::Mat &yakuImg = it->second;
+	cv::Mat yakuRoi = m(cv::Rect(yaku_x, m.size().height - yakuImg.rows, yakuImg.cols, yakuImg.rows));
+	yakuImg.copyTo(yakuRoi);
+	yaku_x += yakuImg.cols;
+    }
     return true;
 }
 
@@ -807,8 +900,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-
-    yolov5.opt.use_vulkan_compute = true;
+    // yolov5.opt.use_vulkan_compute = true;
     // yolov5.opt.use_bf16_storage = true;
 
     // original pretrained model from https://github.com/ultralytics/yolov5
@@ -837,7 +929,28 @@ int main(int argc, char** argv)
     float fps = -1;
     int total_frames = 0;
 
-    while (true)
+    int playerWindIndex = 0;
+    int roundWindIndex = 0;
+    int agariIndex = 0;
+
+    cv::Mat playerWindImgs[] = {
+	    cv::imread("ton-ke.png"),
+	    cv::imread("nan-ke.png"),
+	    cv::imread("sha-ke.png"),
+	    cv::imread("pei-ke.png")};
+
+    cv::Mat roundWindImgs[] = {
+	    cv::imread("ton-ba.png"),
+	    cv::imread("nan-ba.png"),
+	    cv::imread("sha-ba.png"),
+	    cv::imread("pei-ba.png")};
+
+    cv::Mat agariImgs[] = {
+	    cv::imread("tsumo-agari.png"),
+	    cv::imread("ron-agari.png")};
+
+    int loop = true;
+    while (loop)
     {
         cap.read(m);
         if (m.empty())
@@ -846,11 +959,24 @@ int main(int argc, char** argv)
             break;
         }
 
-
         std::vector<Object> objects;
         detect_yolov5(m, objects);
         draw_objects(m, objects);
-        calcMahjongScore(objects, m);
+
+	cv::Mat &playerWindImg = playerWindImgs[playerWindIndex];
+	cv::Mat &roundWindImg = roundWindImgs[roundWindIndex];
+	cv::Mat &agariImg = agariImgs[agariIndex];
+
+	cv::Mat playerWindRoi = m(cv::Rect(0, 0, playerWindImg.cols, playerWindImg.rows));
+	playerWindImg.copyTo(playerWindRoi);
+
+	cv::Mat roundWindRoi = m(cv::Rect(playerWindImg.cols, 0, roundWindImg.cols, roundWindImg.rows));
+	roundWindImg.copyTo(roundWindRoi);
+
+	cv::Mat agariRoi = m(cv::Rect(playerWindImg.cols + roundWindImg.cols, 0, agariImg.cols, agariImg.rows));
+	agariImg.copyTo(agariRoi);
+
+        calcMahjongScore(objects, m, (MJTileId)(playerWindIndex + MJ_WT), (MJTileId)(roundWindIndex + MJ_WT), agariIndex == 0);
 
         frame_count++;
         total_frames++;
@@ -865,6 +991,7 @@ int main(int argc, char** argv)
             start = std::chrono::high_resolution_clock::now();
         }
 
+#if 0
         if (fps > 0)
         {
 
@@ -875,14 +1002,32 @@ int main(int argc, char** argv)
 
             cv::putText(m, fps_label_str.c_str(), cv::Point(10, 25), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
         }
+#endif
 
         cv::imshow("yolov5_ncnn",m);
-        if (cv::waitKey(1) != -1)
-        {
-            cap.release();
-            fprintf(stderr, "finished by user\n");
-            break;
+	int key = cv::waitKey(1);
+
+	switch (key) {
+	case 'q':
+	case 27:
+	    loop = false;
+	    break;
+	case '1':
+	    playerWindIndex = (playerWindIndex + 1) % 4;
+	    break;
+	case '2':
+	    roundWindIndex = (roundWindIndex + 1) % 4;
+	    break;
+	case '3':
+	    agariIndex = (agariIndex + 1) % 2;
+	    break;
+	case '4':
+	    break;
+	default:
+	    break;
         }
     }
+    cap.release();
+    fprintf(stderr, "finished by user\n");
     return 0;
 }
