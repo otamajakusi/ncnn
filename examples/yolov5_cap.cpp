@@ -471,7 +471,7 @@ int main(int argc, char** argv)
     cv::VideoCapture cap(0, cv::CAP_V4L2);
     if (!cap.isOpened())
     {
-	std::cerr << "Error opening video file\n";
+        std::cerr << "Error opening video file\n";
         return -1;
     }
 
@@ -509,10 +509,9 @@ int main(int argc, char** argv)
         cap.read(m);
         if (m.empty())
         {
-	    std::cout << "End of stream\n";
+            std::cout << "End of stream\n";
             break;
         }
-
 
         std::vector<Object> objects;
         detect_yolov5(m, objects);
@@ -523,7 +522,6 @@ int main(int argc, char** argv)
 
         if (frame_count >= 30)
         {
-
             auto end = std::chrono::high_resolution_clock::now();
             fps = frame_count * 1000.0 / std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
@@ -533,7 +531,6 @@ int main(int argc, char** argv)
 
         if (fps > 0)
         {
-
             std::ostringstream fps_label;
             fps_label << std::fixed << std::setprecision(2);
             fps_label << "FPS: " << fps;
@@ -542,7 +539,7 @@ int main(int argc, char** argv)
             cv::putText(m, fps_label_str.c_str(), cv::Point(10, 25), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
         }
 
-        cv::imshow("Jetson Nano",m);
+        cv::imshow("Jetson Nano", m);
         if (cv::waitKey(1) != -1)
         {
             cap.release();
